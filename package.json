@@ -1,6 +1,6 @@
 {
   "name": "class-config-base",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "The base class of a configuration class for a interfacial class.",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "test": "mocha",
     "coverage": "istanbul cover _mocha",
     "coveralls": "istanbul cover _mocha && istanbul-coveralls",
-    "web:build": "browserify index.js --standalone ClassConfigBase | uglifyjs --compress --mangle -o web/class-config-basejs && node/test/web/make.js"
+    "web:build": "browserify index.js --standalone ClassConfigBase | uglifyjs --compress --mangle -o web/class-config-base.js && node test/web/make.js"
   },
   "repository": {
     "type": "git",
@@ -28,6 +28,7 @@
   },
   "homepage": "https://github.com/sttk/class-config-base#readme",
   "devDependencies": {
+    "browserify": "^14.3.0",
     "chai": "^3.5.0",
     "eslint": "^3.19.0",
     "istanbul": "^0.4.5",

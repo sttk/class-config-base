@@ -1,12 +1,13 @@
+{
 'use strict'
 
 /* global describe it */
 /* eslint quotes: "off" */
 
-const ClassConfigBase = require('..')
-const chai = require('chai')
+
+
 const expect = chai.expect
-const instanceStringer = require('instance-stringer')
+
 
 describe('class-config-base', () => {
 
@@ -217,3 +218,5 @@ describe('class-config-base', () => {
     expect(Object.prototype.toString.call(obj)).to.equal('[object Object]')
   })
 })
+
+}
