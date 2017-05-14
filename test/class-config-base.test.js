@@ -152,11 +152,6 @@ describe('class-config-base', () => {
             set (v) { self.b.d = v },
             get () { return self.b.d },
           },
-
-          toString: {
-            set (v) { this.toString = v },
-            get () { return () => instanceStringer(this) },
-          }
         }
       }
     }
@@ -173,8 +168,8 @@ describe('class-config-base', () => {
     expect(myObj.myA).to.equal(999)
     expect(myObj.myC).to.equal('AAA')
     expect(myObj.myD).to.equal(true)
-    expect(myObj.toString()).to.equal("MyClass { myA: 999, myC: 'AAA', " +
-      "myD: true }")
+    expect(myObj.toString()).to.equal('[object MyClass]');
+    expect(Object.prototype.toString.call(myObj)).to.equal('[object MyClass]');
 
     myObj.myA = 888
     myObj.myC = 'BBB'
@@ -183,8 +178,8 @@ describe('class-config-base', () => {
     expect(myObj.myA).to.equal(888)
     expect(myObj.myC).to.equal('BBB')
     expect(myObj.myD).to.equal(false)
-    expect(myObj.toString()).to.equal("MyClass { myA: 888, myC: 'BBB', " +
-      "myD: false }")
+    expect(myObj.toString()).to.equal('[object MyClass]');
+    expect(Object.prototype.toString.call(myObj)).to.equal('[object MyClass]');
 
     myObj.myA = -1
     myObj.myC = 'CCC'
@@ -192,10 +187,18 @@ describe('class-config-base', () => {
     expect(myObj.myA).to.equal(0)
     expect(myObj.myC).to.equal('BBB')
     expect(myObj.myD).to.equal(false)
-    expect(myObj.toString()).to.equal("MyClass { myA: 0, myC: 'BBB', " +
-      "myD: false }")
+    expect(myObj.toString()).to.equal('[object MyClass]');
+    expect(Object.prototype.toString.call(myObj)).to.equal('[object MyClass]');
 
-    expect(Object.prototype.toString.call(myObj)).to.equal('[object Object]')
+    // toString
+
+    myObj[Symbol.toStringTag] = 'MYOBJ'
+    expect(myObj.toString()).to.equal('[object MyClass]')
+    expect(Object.prototype.toString.call(myObj)).to.equal('[object MyClass]');
+
+    myObj.toString = () => { return 'my object' }
+    expect(myObj.toString()).to.equal('my object')
+    expect(Object.prototype.toString.call(myObj)).to.equal('[object MyClass]');
   })
 
   it('Should define an empty config class and a empty class', () => {
@@ -212,8 +215,8 @@ describe('class-config-base', () => {
 
     const obj = new EmptyClass(config)
     expect(Object.keys(obj).length).to.equal(0)
-    expect(obj.toString()).to.equal('[object Object]')
+    expect(obj.toString()).to.equal('[object EmptyClass]')
 
-    expect(Object.prototype.toString.call(obj)).to.equal('[object Object]')
+    expect(Object.prototype.toString.call(obj)).to.equal('[object EmptyClass]')
   })
 })

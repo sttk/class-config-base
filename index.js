@@ -22,6 +22,7 @@ class ConfigBase {
   getInterfaceDescriptors () { return {} }
 
   configure (instance) {
+    defineToString(instance)
     Object.defineProperties(instance, this.getInterfaceDescriptors())
   }
 
@@ -44,6 +45,15 @@ function defaultDescriptor (parent, key) {
     get () { return parent[key] },
     set (v) { parent[key] = defaultValue(v, parent[key]) },
   }
+}
+
+function defineToString (instance) {
+  Object.defineProperties(instance, {
+    [Symbol.toStringTag]: {
+      get () { return instance.constructor.name },
+      set () {},
+    },
+  })
 }
 
 module.exports = ConfigBase

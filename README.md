@@ -12,173 +12,134 @@ npm i class-config-base --save
 
 ## Usage
 
-Load this module :
+1. Load this module.
 
-```js
-const ClassConfigBase = require('class-config-base')
-```
+   ```js
+   const ClassConfigBase = require('class-config-base')
+   ```
 
-Define a configration class :
+2. Define default config object. This object determines **the property default values**, **the property structure** and **the property data types** of the target class config object.
 
-```js
-const defaultConfig = {
-  a: 0,
-  b: { c: '', d: false },
-}
+   ```js
+   const defaultConfig = { a: '', b: { c: 0, d: false } }
+   ```
 
-class MyClassConfig extends ClassConfigBase {
-  constructor (initConfig) {
-    super(initConfig, defaultConfig)
-  }
-}
+3. Define the class config class. `getAccessorDescriptors` method is optional and creates descriptors to override property accessors. `getInterfaceDescriptors` method creates descriptors to define properties and methods of the target interfacial class.
 
-let myConfig = new MyClassConfig()
-console.log(myConfig) // => MyClassConfig { a: 0, b: { c: '', d: false } }
+    ```js
+    class MyClassConfig extends ClassConfigBase {
+      constructor (initConfig) {
+        super(initConfig, defaultConfig)
+      }
+    
+      getAccessorDescriptors () {
+        return {
+          'b.c': parent => ({
+            get () { return parent.a },
+            set (v) { parent.a = Math.max(0, v) },
+          }),
+        }
+      }
 
-myConfig.a = 123
-myConfig.b.c = 'ABC'
-myConfig.b.d = true
-console.log(myConfig) // => MyClassConfig { a: 123, b: { c: 'ABC', d: true } }
-
-myConfig = new MyClassConfig({ a: 9, b: { c: 'Z', d: true } })
-console.log(myConfig) // => MyClassConfig { a: 9, b: { c: 'Z', d: true } }
-```
-
-Define accessors of the configuration class
-
-```js
-class MyClassConfig extends ClassConfigBase {
-  constructor (initConfig) {
-    super(initConfig, defaultConfig)
-  }
-
-  getAccessorDescriptors () {
-    return {
-      'a': parent => ({
-        enumerable: true,
-        get () { return parent.a },
-        set (v) {},
-      })
-
-      'b.c': parent => ({
-        get () { return parent.c },
-        set (v) {
-          if (parent.d) {
-            parent.c = v
-          }
-        },
-      }),
+      getInterfaceDescriptors () {
+        const self = this
+        return {
+          myA: {  /* to make a read-only property */
+            enumerable: true,
+            set () {},
+            get () { return self.a },
+          },
+          
+          myC: {  /* to make a restricted property */
+            enumerable: true,
+            set (v) { if (self.b.d) { self.b.c = v } },
+            get () { return self.b.c },
+          },
+          
+          myD: {
+            enumerable: true,
+            set (v) { self.b.d = v },
+            get () { return self.b.d },
+          },
+        }
+      }
     }
-  }
-}
+    ```
 
-let myConfig = new MyConfig()
-console.log(myConfig) // => MyClassConfig { a: 0, b: { c: '', d: false } }
-
-myConfig.a = 123
-myConfig.b.d = true
-myConfig.b.c = 'ABC'
-console.log(myConfig) // => MyClassConfig { a: 0, b: { c: 'ABC', d: true } }
-
-myConfig.$private.a = 123  // `$private` property holds the entity
-console.log(myConfig) // => MyClassConfig { a: 123, b: { c: 'ABC', d: true } }
-```
-
-Define a interfacial class which doesn't have property entities :
-
-```js
-class MyClassConfig extends ClassConfigBase {
-  constructor (initConfig) {
-    super(initConfig, defaultConfig)
-  }
-
-  getAccessorDescriptors () {
-    return {
-      'a' : parent => ({
-        get () { return parent.a },
-        set (v) { parent.a = Math.max(0, v) }
-      }),
-
-      'b.c': parent => ({
-        get () { return parent.c },
-        set (v) {
-          if (parent.d) {
-            parent.c = v
-          }
-        },
-      }),
+4. Define the interfacial class with the class config.
+ 
+    ```js
+    class MyClass {
+      constructor (myClassConfig) {
+        myClassConfig.configure(this)
+      }
     }
-  }
+    ```
+    
+5. Instantiate and use the interfacial class.
+    
+    ```js
+    const myClassConfig = new MyClassConfig({ a: 'Foo', b: { c: 123, d: true } })
+    const myObj = new MyClass(myClassConfig)
+    
+    console.log(myObj.toString())  // [object MyClass]
+    console.log(Object.prototype.toString.call(myObj)) // [object MyClass]
+    console.log(myObj.myA) // 'Foo'
+    console.log(myObj.myC) // 123
+    console.log(myObj.myD) // true
+    
+    myObj.myA = 'Bar'
+    console.log(myObj.myA) // 'Foo'
+    
+    myObj.myC = 999
+    console.log(myObj.myC) // 999
 
-  getInterfaceDescriptors () {
-    const self = this
+    myObj.myC = -888
+    console.log(myObj.myC) // 0
+    
+    myObj.myD = false
+    console.log(myObj.myD) // false
+    
+    myObj.myC = 777
+    console.log(myObj.myC) // 0
+    ```
 
-    return {
-      myA: {
-        enumerable: true,
-        set (v) { self.a = v },
-        get () { return self.a },
-      },
+6. A property value, even if it is read-only, can be updated with the class config object.
 
-      myC: {
-        enumerable: true,
-        set (v) { self.b.c = v },
-        get () { return self.b.c },
-      },
+    ```js
+    myClassConfig.a = 'Buz'
+    myClassConfig.b.c = 666
 
-      myD: {
-        enumerable: true,
-        set (v) { self.b.d = v },
-        get () { return self.b.d },
-      },
+    console.log(myObj.myA) // 'Buz'
+    console.log(myObj.myC) // 666
+    console.log(myObj.myD) // false
+    ```
 
-      toString: {
-        set (v) { this.toString = v },
-        get () { return () => stringer(this) },
-      },
-    }
-  }
-}
-
-class MyClass {
-  constructor(myConfig) {
-    myConfig.configure(this)
-  }
-}
-
-let myConfig = new MyConfig({ a: 999, b: { c: 'AAA', d: true } })
-let myObj = new MyClass(myConfig)
-
-myObj.myA // => 999
-myObj.myC // => 'AAA'
-myObj.myD // => true
-myObj.toString() // => MyClass { myA: 999, myB: 'AAA', myC: true }
-```
 
 ## API
 
 ### <u>*constructor*(initConfig, defaultConfig)</u>
 
 Constructs a configuration class instance.
-*initConfig* and *defaultConfig* is plain objects and may be nested objects.
-*defaultConfig* is to specify the default values and the type of the properties.
-So if a property of *initConfig* is different from a corresponding property of *defaultConfig*, the property value of *initConfig* is ignored.
+*initConfig* and *defaultConfig* is plain objects and can be nested objects.
+*defaultConfig* is to specify the default values and the types of the properties.
+So if a property in *initConfig* is different from a corresponding property in *defaultConfig*, the property value in *initConfig* is ignored.
 
-**Parameter:**
+**Parameters:**
 
-* **initConfig** [object] : a configuration object which has initial property values.
-* **defaultConfig** [object] : a configuration object which has default property values.
+* **initConfig** (object) : a configuration object which has initial property values.
+* **defaultConfig** (object) : a configuration object which has default property values.
 
 ### <u>getAccessorDescriptors() => object</u>
 
 Returns an object which maps between property key chains and functions which get property descriptors. 
 A key chain concatenates all keys in a key path with dots. A descriptor is the one used by `Object.defineProperty`.
 
-This method may override to configure accessors of the config class.
+This method is to override configure accessors of the config class.
 
-**Return:** [object]
+**Returns:** 
 
-An object which maps between property key chains and property descriptors of the config class instance.
+* (object) An object which maps between property key chains and property descriptors of the config class instance.
 
 The format of an entry in the returned object is as follows:
 
@@ -186,7 +147,7 @@ The format of an entry in the returned object is as follows:
   getAccessorDescriptors () {
     return {
       /* An example of an entry in the returned object */
-      'a.b.c' : function (parent, key, Info) {
+      'a.b.c' : function (parent, key, info) {
         return {
           enumerable: true,
           configurable: false,
@@ -199,18 +160,19 @@ The format of an entry in the returned object is as follows:
   }
 ```
 
-The entry is a function of which the arguments are *parent*, *key*, *info*. *parent* is same with `config.a.b`, and *key* is same with `'c'`. *info* is same with *nodeInfo* of [each-props](https://github.com/sttk/each-props).
+The entry is a function of which the arguments are *parent*, *key*, *info*.
+In the above example, *parent* equals to `config.a.b`, and *key* equals to `'c'`. *info* is same with *nodeInfo* of [each-props](https://github.com/sttk/each-props).
 
 
 ### <u>getInterfaceDescriptors() => object</u>
 
 Returns an object which maps between property name and property descriptors. A descriptor is the one used by `Object.defineProperty`.
 
-This method may override to configure interfaces of the target class.
+This method defines the interfaces of the target class.
 
-**Returns:** [object]
+**Returns:**
 
-An object which maps between property name and property descriptors of the target class.
+* (object) An object which maps between property name and property descriptors of the target class.
 
 The format of an entry in the returned object is as follows:
 
@@ -220,12 +182,12 @@ The format of an entry in the returned object is as follows:
     
     return {
       /* An example of an entry in the returned object */
-      'a' : {
+      'c' : {
         return {
           enumerable: true,
           configurable: false,
-          get () { return self.a },
-          set (v) { self.a = v },
+          get () { return self.a.b.c },
+          set (v) { self.a.b.c = v },
         }
       },
       ...
@@ -235,11 +197,11 @@ The format of an entry in the returned object is as follows:
 
 ### <u>configure(instance)</u>
 
-Configures the target class instance in its constructor.
+Configures the interfaces of the target class instance in its constructor.
 
 **Parameters:**
 
-* **instance** [object] : A class instance to be configured.
+* **instance** (object) : A class instance to be configured.
 
 
 ## License
