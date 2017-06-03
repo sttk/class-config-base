@@ -1,6 +1,6 @@
 {
   "name": "class-config-base",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The base class of a configuration class for a interfacial class.",
   "main": "index.js",
   "scripts": {
