@@ -1,9 +1,6 @@
 {
 'use strict'
 
-/* global describe it */
-/* eslint quotes: "off", max-statements: ["error", 40] */
-
 
 
 const expect = chai.expect

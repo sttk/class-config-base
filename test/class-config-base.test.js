@@ -1,11 +1,9 @@
 'use strict'
 
-/* global describe it */
-
-const ClassConfigBase = require('..')
-const { readonly, writable, replaceable } = ClassConfigBase
 const chai = require('chai')
 const expect = chai.expect
+const ClassConfigBase = require('..')
+const { readonly, writable, replaceable, method } = ClassConfigBase
 
 describe('class-config-base', () => {
 
@@ -653,6 +651,81 @@ describe('class-config-base', () => {
       expect(myconfig.a).to.equal(999)
       expect(myconfig.b.c).to.equal('xxx')
       expect(myconfig.b.d).to.equal(true)
+    })
+
+  })
+
+  describe('define methods', () => {
+    const defaultConfig = { a: 0, b: { c: '', d: '' } }
+
+    class MyClassConfig extends ClassConfigBase {
+      constructor (initConfig) {
+        super(initConfig, defaultConfig)
+      }
+
+      defineInterfaces () {
+        return {
+          aa: cfg => method(() => cfg.a * 2),
+          bc: cfg => method(() => cfg.b.c.toUpperCase()),
+          bd: cfg => method(() => cfg.b.d.toLowerCase()),
+        }
+      }
+    }
+
+    class MyClass {
+      constructor (myConfig) {
+        myConfig.configure(this)
+      }
+    }
+
+    const myconfig = new MyClassConfig()
+    const myobject = new MyClass(myconfig)
+
+    it('Should create a config and a class instance with methods', () => {
+      expect(myconfig.a).to.equal(0)
+      expect(myconfig.b.c).to.equal('')
+      expect(myconfig.b.d).to.equal('')
+
+      expect(myobject.aa()).to.equal(0)
+      expect(myobject.bc()).to.equal('')
+      expect(myobject.bd()).to.equal('')
+
+      myconfig.a = 123
+      myconfig.b.c = 'aBc'
+      myconfig.b.d = 'DeF'
+
+      expect(myconfig.a).to.equal(123)
+      expect(myconfig.b.c).to.equal('aBc')
+      expect(myconfig.b.d).to.equal('DeF')
+
+      expect(myobject.aa()).to.equal(246)
+      expect(myobject.bc()).to.equal('ABC')
+      expect(myobject.bd()).to.equal('def')
+
+      expect(Object.keys(myobject)).to.deep.equal(['aa', 'bc', 'bd'])
+    })
+
+    it('Should be able to change methods', () => {
+      myobject.aa = () => myconfig.a * -1
+      myobject.bc = 'AAA'
+      myobject.bd = null
+
+      expect(myobject.aa()).to.equal(-123)
+      expect(myobject.bc).to.equal('AAA')
+      expect(myobject.bd).to.equal(null)
+
+      expect(Object.keys(myobject)).to.deep.equal(['aa', 'bc', 'bd'])
+    })
+
+    it('Should be able to delete methods', () => {
+      delete myobject.aa
+      delete myobject.bd
+
+      expect(myobject.aa).to.equal(undefined)
+      expect(myobject.bc).to.equal('AAA')
+      expect(myobject.bd).to.equal(undefined)
+
+      expect(Object.keys(myobject)).to.deep.equal(['bc'])
     })
 
   })
