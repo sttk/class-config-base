@@ -1,7 +1,6 @@
 # [class-config-base][repo-url] [![NPM][npm-img]][npm-url] [![MIT License][mit-img]][mit-url] [![Build Status][travis-img]][travis-url] [![Build Status][appveyor-img]][appveyor-url] [![Coverage Status][coverage-img]][coverage-url]
 
-The base class of a configuration class for a interfacial class. 
-
+The base class of a configuration class which configures a interfacial class.
 
 ## Install
 
@@ -9,22 +8,29 @@ The base class of a configuration class for a interfacial class.
 npm install class-config-base --save
 ```
 
+### Load this module
+
+For Node.js
+
+```js
+const ClassConfigBase = require('class-config-base')
+```
+
+For Web browser (only supporting es6)
+
+```html
+<script src="class-config-base.min.js"></script>
+```
 
 ## Usage
 
-1. Load this module.
-
-   ```js
-   const ClassConfigBase = require('class-config-base')
-   ```
-
-2. Define default config object. This object determines **the property default values**, **the property structure** and **the property data types** of the class config class.
+1. Define default config object. This object determines **the property default values**, **the property structure** and **the property data types** of the class config class.
 
    ```js
    const defaultConfig = { a: '', b: { c: 0, d: false } }
    ```
 
-3. Define the class config class. `defineAccessors` method is optional and creates descriptors to override property accessors. `defineInterfaces` method creates descriptors to define properties and methods of the target interfacial class.
+2. Define the class config class. `defineAccessors` method is optional and creates descriptors to override property accessors. `defineInterfaces` method creates descriptors to define properties and methods of the target interfacial class.
 
     ```js
     class MyClassConfig extends ClassConfigBase {
@@ -66,6 +72,12 @@ npm install class-config-base --save
             }) },
             get () { return config.b.d },
           }),
+          myE: (config, myE) => ({ /* method property */
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: (v) => { return config.b.c * v },
+          }),
         }
       }     
     }
@@ -75,7 +87,7 @@ npm install class-config-base --save
     By using these functions, the above example can be rewritten as follows:
     
     ```js
-    const { readonly, writable, replaceable } = ClassConfigBase
+    const { readonly, writable, replaceable, method } = ClassConfigBase
     
     class MyClassConfig extends ClassConfigBase {
     
@@ -96,21 +108,22 @@ npm install class-config-base --save
         return {
           myA: config => readonly({
             get: () => config.a,
-          },
+          }),
           myC: config => writable({
             set (v) { config.b.c = Math.max(v, 0) },
             get () { return config.b.c },
-          },
+          }),
           myD: config => replaceable({
             get: () => config.b.d,
-          }
+          }),
+          myE: config => method(v => config.b.c * v),
         }
       }     
     }    
     ```
     
 
-4. Define the interfacial class with the class config.
+3. Define the interfacial class with the class config.
  
     ```js
     class MyClass {
@@ -120,7 +133,7 @@ npm install class-config-base --save
     }
     ```
     
-5. Instantiate and use the interfacial class.
+4. Instantiate and use the interfacial class.
     
     ```js
     const myCfg = new MyClassConfig({ a: 'Foo', b: { c: 123, d: true } })
@@ -137,6 +150,7 @@ npm install class-config-base --save
     
     myObj.myC = 999
     console.log(myObj.myC) // 999
+    console.log(myObj.myE(2)) // 1998
 
     myObj.myC = -888
     console.log(myObj.myC) // 0
@@ -148,7 +162,7 @@ npm install class-config-base --save
     console.log(myObj.myD) // 123
     ```
 
-6. A property value, even if it is read-only, can be updated with the class config object.
+5. A property value, even if it is read-only, can be updated with the class config object.
 
     ```js
     myCfg.a = 'Buz'
@@ -156,55 +170,73 @@ npm install class-config-base --save
    
     console.log(myObj.myA) // 'Buz'
     console.log(myObj.myC) // 666
+    
+    console.log(myObj.myE(-4)) // -2664
     ```
 
+6. A mapping between a configuration class instance and a interfacial class instance can be managed by `ClassConfigManager` object.
+
+    ```js
+    const { ClassConfigManager } = ClassConfigBase
+    
+    const manager = new ClassConfigManager()  // Create a manager
+    
+    manager.set(myCfg, myObj)  // Set a mapping
+    
+    const aCfg = manager.getConfig(myObj)  // Get the configure object
+    const aObj = manager.getObject(myCfg)  // Get the interfacial object
+    
+    manager.delete(aObj)  // Delete a mapping
+    ```
 
 ## API
 
-### <u>*constructor*(initConfig, defaultConfig)</u>
+### <u>ClassConfigBase(initConfig, defaultConfig)</u>
 
-Constructs a configuration class instance.
+Is a constructor to constructs a configuration class instance.
 *initConfig* and *defaultConfig* are plain objects and can be nested objects.
 *defaultConfig* is to specify the default values and the types of the properties.
 So if a property in *initConfig* is different from a corresponding property in *defaultConfig*, the property value in *initConfig* is ignored.
 
 **Parameters:**
 
-* **initConfig** (object) : a configuration object which has initial property values.
-* **defaultConfig** (object) : a configuration object which has default property values.
+| Parameter       |  Type  | Description                            |
+|:----------------|:------:|:---------------------------------------|
+| *initConfig*    | object | A configuration object which has initial property values. |
+| *defaultConfig* | object | A configuration object which has default property values. |
 
-### <u>defineAccessors() => object</u>
+### <u>defineAccessors() : object</u>
 
 Returns an object which maps between property key chains and functions which return property descriptors. 
 A key chain concatenates all keys in a key path with dots. A descriptor is a thing used by `Object.defineProperty`.
 
-This method is used to override configure accessors of the config class.
+This method is used to override accessors of the config class.
 
-**Returns:** 
+**Returns:**
 
-* (object) An object which maps between property key chains and functions to get property descriptors of the config class.
+An object which maps between property key chains and functions to get property descriptors of the config class.
 
 The format of an entry in the returned object is as follows:
 
-```
-  defineAccessors () {
-    return {
-      'a.b.c' : function (parent, key) {
-        return {
-          enumerable: true,
-          get () { return parent[key] },
-          set (v) { parent[key] = v },
-        }
-      },
-      ...
-    }
-  }
-```
-
 This entry is a function of which the arguments are *parent* and *key*.
-In the above example, *parent* equals to `.a.b`, and *key* equals to `'c'`.
+In the following example, *parent* equals to `.a.b`, and *key* equals to `'c'`.
 
-### <u>defineInterfaces() => object</u>
+```js
+defineAccessors () {
+  return {
+    'a.b.c' : function (parent, key) {
+      return {
+        enumerable: true,
+        get () { return parent[key] },
+        set (v) { parent[key] = v },
+      }
+    },
+    ...
+  }
+}
+```
+
+### <u>defineInterfaces() : object</u>
 
 Returns an object which maps between property names and functions which return property descriptors. A descriptor is a thing used by `Object.defineProperty`.
 
@@ -212,7 +244,7 @@ This method defines the interfaces of the target class.
 
 **Returns:**
 
-* (object) An object which maps between property name and functions to get property descriptors of the target class.
+An object which maps between property name and functions to get property descriptors of the target class.
 
 The format of an entry in the returned object is as follows:
 
@@ -234,40 +266,78 @@ The format of an entry in the returned object is as follows:
 This entry is a function of which the arguments are *config* and *interfaceName*.
 In the above example, *interfaceName* equals to `'ccc'`.
 
-### <u>configure(instance)</u>
+### <u>configure(instance) : void</u>
 
 Configures the interfaces of the target class instance in its constructor.
 
 **Parameters:**
 
-* **instance** (object) : A class instance to be configured.
+| Parameter   |  Type  | Description                        |
+|:------------|:------:|:-----------------------------------|
+| *instance*  | object | A class instance to be configured. |
 
-### <u>*static* readonly({ get, enumerable = true }) => object</u>
 
-Returns a readonly property descriptors.
+### <u>*static* readonly({ get, enumerable = true }) : object</u>
+
+Returns a readonly property descriptor.
 
 **Parameters:**
 
-* **get** : A getter of this property.
-* **enumerable**: A flag to show this property during enumeration of the properties.
+| Parameter  |  Type  | Description                              |
+|:-----------|:------:|:-----------------------------------------|
+| *get*      |function| A getter for this property.              |
+|*enumerable*|boolean | A flag to show this property during enumeration of the properties. |
+
+**Return:**
+
+A property descriptor of the target readonly property.
+
 
 ### <u>*static* writable({ get, set, enumerable = true, configurable = false }) => object</u>
 
-Returns a writable property descriptors.
+Returns a writable property descriptor.
 
-* **get** : A getter of this property.
-* **set** : A setter of this property.
-* **enumerable**: A flag to show this property during enumeration of the properties.
-* **configurable**: A flag to change or delete this property.
+| Parameter    |  Type  | Descriptor                                |
+|:-------------|:------:|:------------------------------------------|
+| *get*        |function| A getter for this property.               |
+| *set*        |function| A setter for this property.               |
+| *enumerable* |boolean | A flag to show this property during enumeration of the properties. |
+|*configurable*|boolean | A flag to change or delete this property. |
 
-### <u>*static* replaceable({ get, enumerable = true }) => object</u>
+**Return:**
 
-Returns a replaceable property descriptors.
+A property descriptor of the target writable property.
+
+
+### <u>*static* replaceable({ get, enumerable = true }) : object</u>
+
+Returns a replaceable property descriptor.
 
 **Parameters:**
 
-* **get** : A getter of this property.
-* **enumerable**: A flag to show this property during enumeration of the properties.
+| Parameter    |  Type  | Description                              |
+|:-------------|:------:|:-----------------------------------------|
+| *get*        |function| A getter for this property.              |
+| *enumerable* |boolean | A flag to show this property during enumeration of the properties. |
+
+**Return:**
+
+A property descriptor of the target replaceable property.
+
+
+### <u>*static* method(fn) : object</u>
+
+Returns a property descriptor for a method.
+
+**Parameters:**
+
+| Parameter    |  Type  | Description                              |
+|:-------------|:------:|:-----------------------------------------|
+| *fn*         |function| A method function for this property.     |
+
+**Return:**
+
+A property descriptor of the target method property.
 
 ## License
 
