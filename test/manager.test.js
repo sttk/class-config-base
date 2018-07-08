@@ -1,30 +1,29 @@
-{
 'use strict'
 
-
+const chai = require('chai')
 const expect = chai.expect
+const ClassConfig = require('..')
+const { Manager } = ClassConfig
 
-const { ClassConfigManager } = ClassConfigBase
-
-describe('class-config-base', () => {
+describe('ClassConfig.Manager', () => {
 
   describe('constructor', () => {
-    it('Should create a ClassConfigManager object', () => {
-      const manager = new ClassConfigManager()
-      expect(manager).to.be.instanceof(ClassConfigManager)
+    it('Should create a Manager object', () => {
+      const manager = new Manager()
+      expect(manager).to.be.instanceof(Manager)
     })
   })
 
   describe('set and delete', () => {
-    const manager = new ClassConfigManager()
+    const manager = new Manager()
 
-    class Config1 extends ClassConfigBase {
+    class Config1 extends ClassConfig {
       constructor () { super() }
     }
     const obj1 = new Object()
     const cfg1 = new Config1()
 
-    class Config2 extends ClassConfigBase {
+    class Config2 extends ClassConfig {
       constructor () { super() }
     }
     const obj2 = new Object()
@@ -169,5 +168,3 @@ describe('class-config-base', () => {
 
 })
 
-
-}

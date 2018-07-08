@@ -4,3 +4,4 @@ coverage
 # Browerify output directories
 web
 test/web
+tool/

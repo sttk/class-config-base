@@ -1,56 +1,53 @@
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.ClassConfigBase = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.ClassConfig = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 'use strict'
 
-const ClassConfigBase = require('./lib/class-config-base')
+const Config = require('./lib/config')
+const Manager = require('./lib/manager')
 
-Object.defineProperty(ClassConfigBase, 'ClassConfigManager', {
+Object.defineProperty(Config, 'Manager', {
   enumerable: true,
-  value: require('./lib/class-config-manager')
+  value: Manager,
 })
 
-module.exports = ClassConfigBase
+module.exports = Config
 
-},{"./lib/class-config-base":2,"./lib/class-config-manager":3}],2:[function(require,module,exports){
+},{"./lib/config":2,"./lib/manager":3}],2:[function(require,module,exports){
 'use strict'
 
 const copyProps = require('copy-props')
 const defaultValue = require('default-val')
 const stringer = require('instance-stringer')
 
-class ClassConfigBase {
+class ClassConfig {
 
   constructor (initConfig, defaultConfig) {
     Object.defineProperty(this, '$private', { value: {} })
     copyProps(defaultConfig, this.$private)
     copyProps(initConfig, this.$private, initPrivateProp)
 
-    const definitions = this.defineAccessors() ||
-                        this.getAccessorDescriptors()
+    this.defineMorePrivates(this.$private)
+    const accessors = this.defineAccessors(this.$private, this)
 
-    defineConfigProps(this, definitions)
+    copyProps(this.$private, this, (src, dst) => {
+      const descriptor = toAccessorDescriptor(src, dst, accessors)
+      Object.defineProperty(dst.parent, dst.key, descriptor)
+    })
   }
 
-  configure (instance) {
+  configure (instance, interfaces = {}) {
     defineToString(instance)
-
-    const definitions = this.defineInterfaces()
-    if (definitions) {
-      defineInstanceProps(instance, definitions, this)
-    }
-
-    Object.defineProperties(instance, this.getInterfaceDescriptors())
+    let descriptors = this.defineInterfaces(this, instance)
+    descriptors = toInterfaceDescriptors(descriptors, interfaces, instance)
+    Object.defineProperties(instance, descriptors)
   }
 
   toString () { return stringer(this) }
 
-  defineAccessors () {}
+  defineMorePrivates (/* $private */) {}
 
-  defineInterfaces () {}
+  defineAccessors (/* $private, config */) {}
 
-  getAccessorDescriptors () { return {} }
-
-  getInterfaceDescriptors () { return {} }
-
+  defineInterfaces (/* config, instance */) {}
 
   static readonly ({ get, enumerable = true }) {
     return {
@@ -74,7 +71,7 @@ class ClassConfigBase {
       enumerable,
       configurable: true,
       get,
-      set: shouldBeReplaceableSetter,
+      set: toReplaceable,
     }
   }
 
@@ -88,54 +85,49 @@ class ClassConfigBase {
   }
 }
 
-
 function initPrivateProp (src, dst) {
   return defaultValue(src.value, dst.value)
 }
-
-function defaultDefinition (parent, key) {
-  return {
-    enumerable: true,
-    get () { return parent[key] },
-    set (v) { parent[key] = defaultValue(v, parent[key]) },
-  }
-}
-
-function defineConfigProps (config, definitions) {
-  copyProps(config.$private, config, (src, dst) => {
-    const definitionFn = definitions[dst.keyChain] || defaultDefinition
-    const descriptor = definitionFn(src.parent, src.key)
-    if (descriptor.set === shouldBeReplaceableSetter) {
-      toReplaceable(descriptor, dst.parent, dst.key)
-    }
-    Object.defineProperty(dst.parent, dst.key, descriptor)
-  })
-}
-
-/* istanbul ignore next */
-function shouldBeReplaceableSetter () {}
 
 function defineToString (instance) {
   Object.defineProperties(instance, {
     [Symbol.toStringTag]: {
       get () { return instance.constructor.name },
+      /* istanbul ignore next */
       set () {},
-    },
+    }
   })
 }
 
-function defineInstanceProps (instance, definitions, config) {
-  const descriptors = Object.keys(definitions).reduce((obj, name) => {
-    const definitionFn = definitions[name]
-    const descriptor = definitionFn(config, name)
-    if (descriptor.set === shouldBeReplaceableSetter) {
-      toReplaceable(descriptor, instance, name)
-    }
-    obj[name] = descriptor
-    return obj
-  }, {})
+function toAccessorDescriptor (src, dst, accessors = {}) {
+  let descriptor = accessors[dst.keyChain]
 
-  Object.defineProperties(instance, descriptors)
+  if (!descriptor) {
+    descriptor = {
+      enumerable: true,
+      get () { return src.parent[src.key] },
+      set (v) { src.parent[src.key] = defaultValue(v, src.parent[src.key]) },
+    }
+  }
+
+  if (descriptor.set === toReplaceable) {
+    toReplaceable(descriptor, dst.parent, dst.key)
+  }
+
+  return descriptor
+}
+
+function toInterfaceDescriptors (byConfig, byInstance, instance) {
+  const descriptors = Object.assign({}, byConfig, byInstance)
+
+  Object.keys(descriptors).forEach(key => {
+    const descriptor = descriptors[key]
+    if (descriptor.set === toReplaceable) {
+      toReplaceable(descriptor, instance, key)
+    }
+  })
+
+  return descriptors
 }
 
 function toReplaceable (descriptor, obj, name) {
@@ -149,12 +141,12 @@ function toReplaceable (descriptor, obj, name) {
   }
 }
 
-module.exports = ClassConfigBase
+module.exports = ClassConfig
 
 },{"copy-props":6,"default-val":7,"instance-stringer":11}],3:[function(require,module,exports){
 'use strict'
 
-const ClassConfigBase = require('./class-config-base')
+const ClassConfig = require('./config')
 
 class ClassConfigManager {
 
@@ -163,8 +155,8 @@ class ClassConfigManager {
   }
 
   set (object, config) {
-    if (config instanceof ClassConfigBase ||
-        object instanceof ClassConfigBase) {
+    if (config instanceof ClassConfig ||
+        object instanceof ClassConfig) {
       this._objectConfigMap.set(config, object)
       this._objectConfigMap.set(object, config)
     }
@@ -178,13 +170,13 @@ class ClassConfigManager {
 
   getConfig (object) {
     const config = this._objectConfigMap.get(object)
-    if (config instanceof ClassConfigBase) {
+    if (config instanceof ClassConfig) {
       return config
     }
   }
 
   getObject (config) {
-    if (config instanceof ClassConfigBase) {
+    if (config instanceof ClassConfig) {
       return this._objectConfigMap.get(config)
     }
   }
@@ -192,7 +184,7 @@ class ClassConfigManager {
 
 module.exports = ClassConfigManager
 
-},{"./class-config-base":2}],4:[function(require,module,exports){
+},{"./config":2}],4:[function(require,module,exports){
 /*!
  * array-each <https://github.com/jonschlinkert/array-each>
  *

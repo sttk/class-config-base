@@ -1,10 +1,11 @@
 'use strict'
 
-const ClassConfigBase = require('./lib/class-config-base')
+const Config = require('./lib/config')
+const Manager = require('./lib/manager')
 
-Object.defineProperty(ClassConfigBase, 'ClassConfigManager', {
+Object.defineProperty(Config, 'Manager', {
   enumerable: true,
-  value: require('./lib/class-config-manager')
+  value: Manager,
 })
 
-module.exports = ClassConfigBase
+module.exports = Config

@@ -1,17 +1,16 @@
-{
 'use strict'
 
-
+const chai = require('chai')
 const expect = chai.expect
+const ClassConfig = require('..')
+const { readonly, writable, replaceable, method } = ClassConfig
 
-const { readonly, writable, replaceable, method } = ClassConfigBase
-
-describe('class-config-base', () => {
+describe('ClassConfig', () => {
 
   describe('no accessor and no interface', () => {
-    const defaultConfig = { a: 0, b: { c: '', d: false } }
+    const defaultConfig = { a: true, b: { c: '', d: 0 } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
@@ -24,84 +23,415 @@ describe('class-config-base', () => {
     }
 
     it('Should create a config with no argument', () => {
-      const myconfig = new MyClassConfig()
-      expect(myconfig.a).to.equal(0)
-      expect(myconfig.b.c).to.equal('')
-      expect(myconfig.b.d).to.equal(false)
+      const myConfig = new MyClassConfig()
+      expect(myConfig.a).to.equal(true)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(0)
+      expect(myConfig.toString()).to.equal(
+        'MyClassConfig { a: true, b: { c: \'\', d: 0 } }')
     })
 
     it('Should create a config with an argument', () => {
-      const myconfig = new MyClassConfig({ a: 9, b: { c: 'DEF', d: true } })
-      expect(myconfig.a).to.equal(9)
-      expect(myconfig.b.c).to.equal('DEF')
-      expect(myconfig.b.d).to.equal(true)
+      const myConfig = new MyClassConfig({ a: false, b: { c: 'DEF', d: 1 } })
+      expect(myConfig.a).to.equal(false)
+      expect(myConfig.b.c).to.equal('DEF')
+      expect(myConfig.b.d).to.equal(1)
+      expect(myConfig.toString()).to.equal(
+        'MyClassConfig { a: false, b: { c: \'DEF\', d: 1 } }')
     })
 
     it('Should access config\'s accessors', () => {
-      const myconfig = new MyClassConfig()
-      myconfig.a = 123
-      myconfig.b.c = 'ABC'
-      myconfig.b.d = true
-      expect(myconfig.a).to.equal(123)
-      expect(myconfig.b.c).to.equal('ABC')
-      expect(myconfig.b.d).to.equal(true)
+      const myConfig = new MyClassConfig()
+      myConfig.a = false
+      myConfig.b.c = 'ABC'
+      myConfig.b.d = 123
+      expect(myConfig.a).to.equal(false)
+      expect(myConfig.b.c).to.equal('ABC')
+      expect(myConfig.b.d).to.equal(123)
 
-      myconfig.a = -123
-      myconfig.b.c = 'abc'
-      myconfig.b.d = false
-      expect(myconfig.a).to.equal(-123)
-      expect(myconfig.b.c).to.equal('abc')
-      expect(myconfig.b.d).to.equal(false)
+      myConfig.a = true
+      myConfig.b.c = 'abc'
+      myConfig.b.d = -123
+      expect(myConfig.a).to.equal(true)
+      expect(myConfig.b.c).to.equal('abc')
+      expect(myConfig.b.d).to.equal(-123)
     })
 
     it('Should delete normal properties', () => {
-      const myconfig = new MyClassConfig()
+      const myConfig = new MyClassConfig()
 
-      if (typeof window !== 'undefined') {
-        delete myconfig.a
-        delete myconfig.b.c
-        delete myconfig.b.d
-      } else {
-        expect(() => { delete myconfig.a }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.c }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.d }).to.throw(TypeError)
-      }
+      expect(() => { delete myConfig.a }).to.throw(TypeError)
+      expect(() => { delete myConfig.b.c }).to.throw(TypeError)
+      expect(() => { delete myConfig.b.d }).to.throw(TypeError)
 
-      expect(myconfig.a).not.to.equal(undefined)
-      expect(myconfig.b.c).not.to.equal(undefined)
-      expect(myconfig.b.d).not.to.equal(undefined)
+      expect(myConfig.a).not.to.equal(undefined)
+      expect(myConfig.b.c).not.to.equal(undefined)
+      expect(myConfig.b.d).not.to.equal(undefined)
     })
 
     it('Should not allow to set bad type value', () => {
-      const myconfig = new MyClassConfig()
-      myconfig.a = 'A'
-      myconfig.b.c = 1
-      myconfig.b.d = 9
-      expect(myconfig.a).to.equal(0)
-      expect(myconfig.b.c).to.equal('')
-      expect(myconfig.b.d).to.equal(false)
-
-      myconfig.a = 123
-      myconfig.b.c = 'ABC'
-      myconfig.b.d = true
-      expect(myconfig.a).to.equal(123)
-      expect(myconfig.b.c).to.equal('ABC')
-      expect(myconfig.b.d).to.equal(true)
-
-      myconfig.a = 'ABC'
-      myconfig.b.c = true
-      myconfig.b.d = 123
-      expect(myconfig.a).to.equal(123)
-      expect(myconfig.b.c).to.equal('ABC')
-      expect(myconfig.b.d).to.equal(true)
+      const myConfig = new MyClassConfig()
+      myConfig.a = 'A'
+      myConfig.b.c = 1
+      myConfig.b.d = 'B'
+      expect(myConfig.a).to.equal(true)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(0)
     })
 
     it('Should be able to create an object but no interface', () => {
-      const myconfig = new MyClassConfig()
-      const myobject = new MyClass(myconfig)
-      expect(Object.keys(myobject).length).to.equal(0)
-      expect(myobject.toString()).to.equal('[object MyClass]')
-      expect(Object.prototype.toString.call(myobject))
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      expect(Object.keys(myObject).length).to.equal(0)
+      expect(myObject.toString()).to.equal('[object MyClass]')
+      expect(Object.prototype.toString.call(myObject))
+        .to.equal('[object MyClass]')
+    })
+  })
+
+  describe('define further private members', () => {
+    const defaultConfig = { a: 0, b: { c: '', d: false } }
+
+    class MyClassConfig extends ClassConfig {
+      constructor (initConfig) {
+        super(initConfig, defaultConfig)
+      }
+
+      defineMorePrivates ($private) {
+        $private.e = { f: [1, 2, 3], g: 123 }
+      }
+    }
+
+    class MyClass {
+      constructor (myConfig) {
+        myConfig.configure(this)
+      }
+    }
+
+    it('Should create a config with no argument', () => {
+      const myConfig = new MyClassConfig()
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(false)
+      expect(myConfig.e.f).to.deep.equal([1, 2, 3])
+      expect(myConfig.e.g).to.equal(123)
+    })
+
+    it('Should be able to create an object but no interface', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      expect(Object.keys(myObject).length).to.equal(0)
+      expect(myObject.toString()).to.equal('[object MyClass]')
+      expect(Object.prototype.toString.call(myObject))
+        .to.equal('[object MyClass]')
+    })
+  })
+
+  describe('define accessors', () => {
+    const defaultConfig = { a: 0, b: { c: '', d: false } }
+
+    class MyClassConfig extends ClassConfig {
+      constructor (initConfig) {
+        super(initConfig, defaultConfig)
+      }
+
+      defineMorePrivates ($private) {
+        $private.e = { f: [1, 2, 3], g: 123 }
+      }
+
+      defineAccessors ($private) {
+        return {
+          a: {
+            get () { return Math.max($private.a, 0) },
+            set () {},
+          },
+          'b.c': {
+            get: () => $private.b.c.toUpperCase(),
+            set: () => {},
+          },
+          'b.d': {
+            get: () => $private.b.d,
+            set: v => { $private.b.d = v },
+          },
+          'e.f': {
+            get: () => $private.e.f,
+            set: () => {},
+          },
+          'e.g': {
+            get: () => $private.e.g * 2,
+            set: v => { $private.e.g = v / 2 },
+          },
+        }
+      }
+    }
+
+    class MyClass {
+      constructor (myConfig) {
+        myConfig.configure(this, {})
+      }
+    }
+
+    it('Should create a config with no argument', () => {
+      const myConfig = new MyClassConfig()
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(false)
+      expect(myConfig.e.f).to.deep.equal([1, 2, 3])
+      expect(myConfig.e.g).to.equal(246)
+    })
+
+    it('Should access config\'s accessors', () => {
+      const myConfig = new MyClassConfig()
+      myConfig.a = 123
+      myConfig.b.c = 'ABC'
+      myConfig.b.d = true
+      myConfig.e.f = [4, 5]
+      myConfig.e.g = 222
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(true)
+      expect(myConfig.e.f).to.deep.equal([1, 2, 3])
+      expect(myConfig.e.g).to.equal(222)
+      expect(myConfig.$private.a).to.equal(0)
+      expect(myConfig.$private.b.c).to.equal('')
+      expect(myConfig.$private.b.d).to.equal(true)
+      expect(myConfig.$private.e.f).to.deep.equal([1, 2, 3])
+      expect(myConfig.$private.e.g).to.equal(111)
+    })
+
+    it('Should not delete properties', () => {
+      const myConfig = new MyClassConfig()
+
+      expect(() => { delete myConfig.a }).to.throw(TypeError)
+      expect(() => { delete myConfig.b.c }).to.throw(TypeError)
+      expect(() => { delete myConfig.b.d }).to.throw(TypeError)
+      expect(() => { delete myConfig.e.f }).to.throw(TypeError)
+      expect(() => { delete myConfig.e.g }).to.throw(TypeError)
+
+      expect(myConfig.a).not.to.equal(undefined)
+      expect(myConfig.b.c).not.to.equal(undefined)
+      expect(myConfig.b.d).not.to.equal(undefined)
+      expect(myConfig.e.f).not.to.equal(undefined)
+      expect(myConfig.e.g).not.to.equal(undefined)
+    })
+
+    it('Should be able to create an object but no interface', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      expect(Object.keys(myObject).length).to.equal(0)
+      expect(myObject.toString()).to.equal('[object MyClass]')
+      expect(Object.prototype.toString.call(myObject))
+        .to.equal('[object MyClass]')
+    })
+
+  })
+
+  describe('define interfaces by config', () => {
+    const defaultConfig = { a: 0, b: { c: '', d: false } }
+
+    class MyClassConfig extends ClassConfig {
+      constructor (initConfig) {
+        super(initConfig, defaultConfig)
+      }
+
+      defineAccessors ($private) {
+        return {
+          a: {
+            get () { return Math.max($private.a, 0) },
+            set () {},
+          },
+          'b.c': {
+            get: () => $private.b.c.toUpperCase(),
+            set: () => {},
+          },
+          'b.d': {
+            get: () => $private.b.d,
+            set: v => { $private.b.d = v },
+          },
+        }
+      }
+
+      defineInterfaces (config) {
+        return {
+          a: {
+            get: () => config.a,
+            set: () => {},
+          },
+          bC: {
+            get: () => config.b.c,
+            set: () => {},
+          },
+          bD: {
+            get: () => config.b.d,
+            set: v => { config.b.d = v },
+          },
+        }
+      }
+    }
+
+    class MyClass {
+      constructor (myConfig) {
+        myConfig.configure(this)
+      }
+    }
+
+    it('Should create an instance', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(false)
+      expect(myObject.a).to.equal(0)
+      expect(myObject.bC).to.equal('')
+      expect(myObject.bD).to.equal(false)
+    })
+
+    it('Should access config\'s accessors', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      myConfig.a = 123
+      myConfig.b.c = 'ABC'
+      myConfig.b.d = true
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(true)
+      expect(myObject.a).to.equal(0)
+      expect(myObject.bC).to.equal('')
+      expect(myObject.bD).to.equal(true)
+
+      myObject.a = 456
+      myObject.bC = 'XXX'
+      myObject.bD = false
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(false)
+      expect(myObject.a).to.equal(0)
+      expect(myObject.bC).to.equal('')
+      expect(myObject.bD).to.equal(false)
+    })
+
+    it('Should not delete properties', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+
+      expect(() => { delete myObject.a }).to.throw(TypeError)
+      expect(() => { delete myObject.bC }).to.throw(TypeError)
+      expect(() => { delete myObject.bD }).to.throw(TypeError)
+
+      expect(myObject.a).not.to.equal(undefined)
+      expect(myObject.bC).not.to.equal(undefined)
+      expect(myObject.bD).not.to.equal(undefined)
+    })
+
+    it('Should be able to create an object but no interface', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      expect(Object.keys(myObject).length).to.equal(0)
+      expect(myObject.toString()).to.equal('[object MyClass]')
+      expect(Object.prototype.toString.call(myObject))
+        .to.equal('[object MyClass]')
+    })
+  })
+
+  describe('define interfaces by instance', () => {
+    const defaultConfig = { a: 0, b: { c: '', d: false } }
+
+    class MyClassConfig extends ClassConfig {
+      constructor (initConfig) {
+        super(initConfig, defaultConfig)
+      }
+
+      defineAccessors ($private) {
+        return {
+          a: {
+            get () { return Math.max($private.a, 0) },
+            set () {},
+          },
+          'b.c': {
+            get: () => $private.b.c.toUpperCase(),
+            set: () => {},
+          },
+          'b.d': {
+            get: () => $private.b.d,
+            set: v => { $private.b.d = v },
+          },
+        }
+      }
+    }
+
+    class MyClass {
+      constructor (config) {
+        config.configure(this, {
+          a: {
+            get: () => config.a,
+            set: () => {},
+          },
+          bC: {
+            get: () => config.b.c,
+            set: () => {},
+          },
+          bD: {
+            get: () => config.b.d,
+            set: v => { config.b.d = v },
+          },
+        })
+      }
+    }
+
+    it('Should create an instance', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(false)
+      expect(myObject.a).to.equal(0)
+      expect(myObject.bC).to.equal('')
+      expect(myObject.bD).to.equal(false)
+    })
+
+    it('Should access config\'s accessors', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      myConfig.a = 123
+      myConfig.b.c = 'ABC'
+      myConfig.b.d = true
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(true)
+      expect(myObject.a).to.equal(0)
+      expect(myObject.bC).to.equal('')
+      expect(myObject.bD).to.equal(true)
+
+      myObject.a = 456
+      myObject.bC = 'XXX'
+      myObject.bD = false
+      expect(myConfig.a).to.equal(0)
+      expect(myConfig.b.c).to.equal('')
+      expect(myConfig.b.d).to.equal(false)
+      expect(myObject.a).to.equal(0)
+      expect(myObject.bC).to.equal('')
+      expect(myObject.bD).to.equal(false)
+    })
+
+    it('Should not delete properties', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+
+      expect(() => { delete myObject.a }).to.throw(TypeError)
+      expect(() => { delete myObject.bC }).to.throw(TypeError)
+      expect(() => { delete myObject.bD }).to.throw(TypeError)
+
+      expect(myObject.a).not.to.equal(undefined)
+      expect(myObject.bC).not.to.equal(undefined)
+      expect(myObject.bD).not.to.equal(undefined)
+    })
+
+    it('Should be able to create an object but no interface', () => {
+      const myConfig = new MyClassConfig()
+      const myObject = new MyClass(myConfig)
+      expect(Object.keys(myObject).length).to.equal(0)
+      expect(myObject.toString()).to.equal('[object MyClass]')
+      expect(Object.prototype.toString.call(myObject))
         .to.equal('[object MyClass]')
     })
   })
@@ -109,16 +439,16 @@ describe('class-config-base', () => {
   describe('define readonly accessors', () => {
     const defaultConfig = { a: 0, b: { c: '', d: false } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
 
-      defineAccessors () {
+      defineAccessors ($private) {
         return {
-          a: (p, key) => readonly({ get: () => Math.max(p[key], 0) }),
-          'b.c': (p, key) => readonly({ get: () => p[key].toUpperCase() }),
-          'b.d': (p, key) => readonly({ get () { return p[key] } }),
+          a: readonly({ get: () => Math.max($private.a, 0) }),
+          'b.c': readonly({ get: () => $private.b.c.toUpperCase() }),
+          'b.d': readonly({ get () { return $private.b.d } }),
         }
       }
     }
@@ -163,15 +493,9 @@ describe('class-config-base', () => {
     it('Should not delete readonly properties', () => {
       const myconfig = new MyClassConfig()
 
-      if (typeof window !== 'undefined') {
-        delete myconfig.a
-        delete myconfig.b.c
-        delete myconfig.b.d
-      } else {
-        expect(() => { delete myconfig.a }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.c }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.d }).to.throw(TypeError)
-      }
+      expect(() => { delete myconfig.a }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.c }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.d }).to.throw(TypeError)
 
       expect(myconfig.a).not.to.equal(undefined)
       expect(myconfig.b.c).not.to.equal(undefined)
@@ -191,24 +515,24 @@ describe('class-config-base', () => {
   describe('define writable accessors', () => {
     const defaultConfig = { a: 0, b: { c: '', d: false } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
 
-      defineAccessors () {
+      defineAccessors ($private) {
         return {
-          a: (p, key) => writable({
-            get: () => p[key],
-            set: v => { p[key] = Math.max(v, 0) },
+          a: writable({
+            get: () => $private.a,
+            set: v => { $private.a = Math.max(v, 0) },
           }),
-          'b.c': (p, key) => writable({
-            get: () => p[key],
-            set: v => { p[key] = v ? v.toUpperCase() : '' },
+          'b.c': writable({
+            get: () => $private.b.c,
+            set: v => { $private.b.c = v ? v.toUpperCase() : '' },
           }),
-          'b.d': (p, key) => writable({
-            get () { return p[key] },
-            set (v) { p[key] = v },
+          'b.d': writable({
+            get () { return $private.b.d },
+            set (v) { $private.b.d = v },
           }),
         }
       }
@@ -247,15 +571,9 @@ describe('class-config-base', () => {
     it('Should not delete writable properties', () => {
       const myconfig = new MyClassConfig()
 
-      if (typeof window !== 'undefined') {
-        delete myconfig.a
-        delete myconfig.b.c
-        delete myconfig.b.d
-      } else {
-        expect(() => { delete myconfig.a }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.c }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.d }).to.throw(TypeError)
-      }
+      expect(() => { delete myconfig.a }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.c }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.d }).to.throw(TypeError)
 
       expect(myconfig.a).not.to.equal(undefined)
       expect(myconfig.b.c).not.to.equal(undefined)
@@ -275,21 +593,21 @@ describe('class-config-base', () => {
   describe('define replaceable accessors', () => {
     const defaultConfig = { a: 0, b: { c: '', d: false } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
 
-      defineAccessors () {
+      defineAccessors ($private) {
         return {
-          a: (p, key) => replaceable({
-            get: () => Math.max(p[key], 0),
+          a: replaceable({
+            get: () => Math.max($private.a, 0),
           }),
-          'b.c': (p, key) => replaceable({
-            get: () => p[key].toUpperCase(),
+          'b.c': replaceable({
+            get: () => $private.b.c.toUpperCase(),
           }),
-          'b.d': (p, key) => replaceable({
-            get () { return p[key] },
+          'b.d': replaceable({
+            get () { return $private.b.d },
           }),
         }
       }
@@ -345,26 +663,25 @@ describe('class-config-base', () => {
       expect(Object.prototype.toString.call(myobject))
         .to.equal('[object MyClass]')
     })
-
   })
 
   describe('define readonly interfaces', () => {
     const defaultConfig = { a: 0, b: { c: '', d: false } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
 
-      defineInterfaces () {
+      defineInterfaces (cfg) {
         return {
-          aaa: cfg => readonly({
+          aaa: readonly({
             get: () => Math.max(cfg.a, 0),
           }),
-          ccc: cfg => readonly({
+          ccc: readonly({
             get: () => cfg.b.c.toUpperCase(),
           }),
-          ddd: cfg => readonly({
+          ddd: readonly({
             get () { return cfg.b.d },
           }),
         }
@@ -418,15 +735,9 @@ describe('class-config-base', () => {
     it('Should not delete readonly interfaces', () => {
       const myconfig = new MyClassConfig()
 
-      if (typeof window !== 'undefined') {
-        delete myconfig.a
-        delete myconfig.b.c
-        delete myconfig.b.d
-      } else {
-        expect(() => { delete myconfig.a }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.c }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.d }).to.throw(TypeError)
-      }
+      expect(() => { delete myconfig.a }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.c }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.d }).to.throw(TypeError)
 
       expect(myconfig.a).not.to.equal(undefined)
       expect(myconfig.b.c).not.to.equal(undefined)
@@ -437,22 +748,22 @@ describe('class-config-base', () => {
   describe('define writable interfaces', () => {
     const defaultConfig = { a: 0, b: { c: '', d: false } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
 
-      defineInterfaces () {
+      defineInterfaces (cfg) {
         return {
-          aaa: cfg => writable({
+          aaa: writable({
             set: v => { cfg.a = Math.max(v, 0) },
             get: () => cfg.a,
           }),
-          ccc: cfg => writable({
+          ccc: writable({
             set: v => { cfg.b.c = v ? v.toUpperCase() : '' },
             get: () => cfg.b.c,
           }),
-          ddd: cfg => writable({
+          ddd: writable({
             set: v => { cfg.b.d = v },
             get: () => cfg.b.d,
           }),
@@ -506,15 +817,9 @@ describe('class-config-base', () => {
     it('Should not delete writable interfaces', () => {
       const myconfig = new MyClassConfig()
 
-      if (typeof window !== 'undefined') {
-        delete myconfig.a
-        delete myconfig.b.c
-        delete myconfig.b.d
-      } else {
-        expect(() => { delete myconfig.a }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.c }).to.throw(TypeError)
-        expect(() => { delete myconfig.b.d }).to.throw(TypeError)
-      }
+      expect(() => { delete myconfig.a }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.c }).to.throw(TypeError)
+      expect(() => { delete myconfig.b.d }).to.throw(TypeError)
 
       expect(myconfig.a).not.to.equal(undefined)
       expect(myconfig.b.c).not.to.equal(undefined)
@@ -525,22 +830,22 @@ describe('class-config-base', () => {
   describe('define replaceable interfaces', () => {
     const defaultConfig = { a: 0, b: { c: '', d: false } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
 
-      defineInterfaces () {
+      defineInterfaces (cfg) {
         return {
-          aaa: cfg => replaceable({
+          aaa: replaceable({
             set: v => cfg.a = Math.max(v, 0),
             get: () => cfg.a,
           }),
-          ccc: cfg => replaceable({
+          ccc: replaceable({
             set: v => cfg.b.c = v ? v.toUpperCase() : '',
             get: () => cfg.b.c,
           }),
-          ddd: cfg => replaceable({
+          ddd: replaceable({
             set: v => cfg.b.d = v,
             get: () => cfg.b.d,
           }),
@@ -653,22 +958,21 @@ describe('class-config-base', () => {
       expect(myconfig.b.c).to.equal('xxx')
       expect(myconfig.b.d).to.equal(true)
     })
-
   })
 
   describe('define methods', () => {
     const defaultConfig = { a: 0, b: { c: '', d: '' } }
 
-    class MyClassConfig extends ClassConfigBase {
+    class MyClassConfig extends ClassConfig {
       constructor (initConfig) {
         super(initConfig, defaultConfig)
       }
 
-      defineInterfaces () {
+      defineInterfaces (cfg) {
         return {
-          aa: cfg => method(() => cfg.a * 2),
-          bc: cfg => method(() => cfg.b.c.toUpperCase()),
-          bd: cfg => method(() => cfg.b.d.toLowerCase()),
+          aa: method(() => cfg.a * 2),
+          bc: method(() => cfg.b.c.toUpperCase()),
+          bd: method(() => cfg.b.d.toLowerCase()),
         }
       }
     }
@@ -728,9 +1032,6 @@ describe('class-config-base', () => {
 
       expect(Object.keys(myobject)).to.deep.equal(['bc'])
     })
-
   })
 
 })
-
-}

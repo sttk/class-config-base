@@ -5,17 +5,18 @@
   "main": "index.js",
   "files": [
     "index.js",
-    "lib"
+    "lib",
+    "web"
   ],
   "scripts": {
     "lint": "eslint .",
     "test": "mocha",
     "coverage": "nyc --reporter=lcov --reporter=text-summary npm test",
     "coveralls": "nyc --reporter=text-lcov npm test | coveralls",
-    "web:build": "browserify index.js --standalone ClassConfigBase -o web/class-config-base.js && cd web && uglifyjs class-config-base.js --compress --mangle -o class-config-base.min.js --source-map url=i\"'class-config-base.min.js.map'\"",
+    "web:build": "browserify index.js --standalone ClassConfig -o web/class-config-base.js && cd web && uglifyjs class-config-base.js --compress --mangle -o class-config-base.min.js --source-map url=i\"'class-config-base.min.js.map'\"",
     "chrome:install": "npm i --no-save mocha-chrome",
     "chrome:test": "mocha-chrome test/web/browser-test.html",
-    "build": "npm run lint && npm run coverage && npm run web:build && node build/webify.js"
+    "build": "npm run lint && npm run coverage && npm run web:build && node tool/mktest.js"
   },
   "repository": {
     "type": "git",
@@ -36,16 +37,16 @@
   "homepage": "https://github.com/sttk/class-config-base#readme",
   "devDependencies": {
     "browserify": "^16.2.2",
-    "chai": "^3.5.0",
-    "coveralls": "^3.0.1",
-    "eslint": "^4.19.1",
-    "mocha": "^3.2.0",
-    "nyc": "^11.7.2",
+    "chai": "^4.1.2",
+    "coveralls": "^3.0.2",
+    "eslint": "^5.0.1",
+    "mocha": "^5.2.0",
+    "nyc": "^12.0.2",
     "uglify-es": "^3.3.9"
   },
   "dependencies": {
-    "copy-props": "^2.0.0",
+    "copy-props": "^2.0.4",
     "default-val": "^0.1.5",
-    "instance-stringer": "^0.1.0"
+    "instance-stringer": "^1.0.0"
   }
 }
