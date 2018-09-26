@@ -1035,6 +1035,33 @@ describe('ClassConfig', () => {
     })
   })
 
+  describe('share private data', () => {
+    class FooConfig extends ClassConfig {
+      constructor (initConfig, opts) {
+        super(initConfig, { bar: 1, baz: 'A' }, opts)
+      }
+    }
+
+    it('Should share .$private', () => {
+      const config1 = new FooConfig()
+      const config2 = new FooConfig(config1, { sharePrivate: true })
+      expect(config1.$private).to.equal(config2.$private)
+    })
+
+    it('Should change properties of sharing configs synchronously', () => {
+      const config1 = new FooConfig()
+      const config2 = new FooConfig(config1, { sharePrivate: true })
+
+      config1.bar = 2
+      expect(config1.bar).to.equal(2)
+      expect(config2.bar).to.equal(2)
+
+      config2.baz = 'Bbb'
+      expect(config1.baz).to.equal('Bbb')
+      expect(config2.baz).to.equal('Bbb')
+    })
+  })
+
 })
 
 })();

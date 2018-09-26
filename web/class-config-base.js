@@ -20,12 +20,19 @@ const stringer = require('instance-stringer')
 
 class ClassConfig {
 
-  constructor (initConfig, defaultConfig) {
-    Object.defineProperty(this, '$private', { value: {} })
-    copyProps(defaultConfig, this.$private)
-    copyProps(initConfig, this.$private, initPrivateProp)
+  constructor (initConfig, defaultConfig, { sharePrivate } = {}) {
+    if (sharePrivate && (initConfig instanceof ClassConfig)) {
+      Object.defineProperty(this, '$private', {
+        value: initConfig.$private
+      })
+    } else {
+      Object.defineProperty(this, '$private', { value: {} })
+      copyProps(defaultConfig, this.$private)
+      copyProps(initConfig, this.$private, initPrivateProp)
 
-    this.defineMorePrivates(this.$private)
+      this.defineMorePrivates(this.$private)
+    }
+
     const accessors = this.defineAccessors(this.$private, this)
 
     copyProps(this.$private, this, (src, dst) => {

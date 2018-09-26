@@ -27,7 +27,7 @@ For Web browser (only supporting es6)
 1. Define default config object. This object determines **the property default values**, **the property structure** and **the property data types** of the class config class.
 
    ```js
-   const defaultConfig = { a: '', b: { c: 0, d: 1 } }
+   const defaultConfig = { top: 0, left: 0, right: 100, bottom: 50 }
    ```
 
 2. Define the class config class.
@@ -36,54 +36,66 @@ For Web browser (only supporting es6)
     * `defineInterfaces` method creates descriptors to define properties and methods of the target interfacial class.
 
     ```js
-    class MyClassConfig extends ClassConfig {
-
-      constructor (initConfig) {
-        super(initConfig, defaultConfig)
+    class RectangleConfig extends ClassConfig {
+      constructor (initConfig, opts) {
+        super(initConfig, defaultConfig, opts)
       }
 
       defineMorePrivates ($private) {
-        $private.e = { f: [1, 2, 3] }
+        $private.zoom = 1
+        $private.zoomRange = { min: 0.2, max: 5 }
       }
 
       defineAccessors ($private, config) {
         return {
-          'b.c': {
+          zoom: { /* writable property */
             enumerable: true,
-            get () { return $private.b.c },
-            set (v) { $private.b.c = Math.max(0, v) },
-          }
+            get () { return $private.zoom },
+            set (v) {
+              v = Math.max(v, config.zoomRange.min)
+              v = Math.min(v, config.zoomRange.max)
+              $private.zoom = v
+            },
+          },
         }
       }
+      
+      get width () { return this.right - this.left }
+      get height () { return this.bottom - this.top }
 
       defineInterfaces (config, instance) {
         return {
-          myA: { /* readonly property */
+          width: { /* writable property */
             enumerable: true,
-            set () {},
-            get () { return config.a },
+            get () { return config.width * config.zoom },
+            set (v) { config.right = config.left + v / config.zoom },
           },
-          myC: { /* writable property */
+          height: { /* writable property */
             enumerable: true,
-            set (v) { config.b.c = v },
-            get () { return config.b.c },
+            get () { return config.height * config.zoom },
+            set (v) { config.bottom = config.top + v / config.zoom },
           },
-          myF: { /* replaceable property */
+          area: { /* replaceable property */
             enumerable: true,
             configurable: true,
-            set (value) { Object.defineProperty(instance, 'myF', {
+            set (value) { Object.defineProperty(instance, 'area', {
               enumerable: true,
               configuable: true,
               writable: true,
               value,
             }) },
-            get () { return config.e.f },
+            get () {
+              return config.width * config.zoom * config.height * config.zoom
+            },
           },
-          myG: { /* method property */
+          inflate: { /* method property */
             enumerable: true,
             configurable: true,
             writable: true,
-            value: (v) => { return config.b.d * v },
+            value: (dw, dh) => {
+              config.right += dw
+              config.bottom += dh
+            },
           },
         }
       }
@@ -96,34 +108,52 @@ For Web browser (only supporting es6)
     ```js
     const { readonly, writable, replaceable, method } = ClassConfig
 
-    class MyClassConfig extends ClassConfig {
+    class RectangleConfig extends ClassConfig {
 
-      constructor (initConfig) {
-        super(initConfig, defaultConfig)
+      constructor (initConfig, opts) {
+        super(initConfig, defaultConfig, opts)
       }
 
       defineMorePrivates ($private) {
-        $private.e = { f: [1, 2, 3] }
+        $private.zoom = 1
+        $private.zoomRange = { min: 0.2, max: 5 }
       }
 
       defineAccessors ($private, config) {
         return {
-          'b.c': writable({
-            get () { return $private.b.c },
-            set (v) { $private.b.c = Math.max(0, v) },
+          zoom: writable({
+            get () { return $private.zoom },
+            set (v) {
+              v = Math.max(v, config.zoomRange.min)
+              v = Math.min(v, config.zoomRange.max)
+              $private.zoom = v
+            },
           }),
         }
       }
+      
+      get width () { return this.right - this.left }
+      get height () { return this.bottom - this.top }
 
       defineInterfaces (config, instance) {
         return {
-          myA: readonly({ get: () => config.a }),
-          myC: writable({
-            set: v => { config.b.c = v },
-            get: () => config.b.c,
+          width: writable({
+            get () { return config.width * config.zoom },
+            set (v) { config.right = config.left + v / config.zoom },
           }),
-          myF: replaceable({ get: () => config.e.f }),
-          myG: method((v) => { return config.b.d * v }),
+          height: writable({
+            get () { return config.height * config.zoom },
+            set (v) { config.bottom = config.top + v / config.zoom },
+          }),
+          area: replaceable({
+            get () {
+              return config.width * config.zoom * config.height * config.zoom
+            },
+          }),
+          inflate: method((dw, dh) => {
+            config.right += dw
+            config.bottom += dh
+          }),
         }
       }
     }
@@ -132,7 +162,7 @@ For Web browser (only supporting es6)
 3. Define the interfacial class with the class config.
 
     ```js
-    class MyClass {
+    class Rectangle {
       constructor (config) {
         config.configure(this)
       }
@@ -142,26 +172,32 @@ For Web browser (only supporting es6)
     The interfaces of interfacial class can be also defined by following way:
 
     ```js
-    class MyClassConfig extends ClassConfig {
-      constructor (initConfig) { ... }
+    class RectangleConfig extends ClassConfig {
+      constructor (initConfig, opts) { ... }
       defineMorePrivates ($private) { ... }
       defineAccessors ($private, config) { ... }
     }
 
-    class MyClass {
+    class Rectangle {
       constructor (config) {
         config.configure(this, {
-
-          myA: readonly({ get: () => config.a }),
-
-          myC: writable({
-            set: v => { config.b.c = v },
-            get: () => config.b.c,
+          width: writable({
+            get () { return config.width * config.zoom },
+            set (v) { config.right = config.left + v / config.zoom },
           }),
-
-          myF: replaceable({ get: () => config.e.f }),
-
-          myG: method((v) => { return config.b.d * v }),
+          height: writable({
+            get () { return config.height * config.zoom },
+            set (v) { config.bottom = config.top + v / config.zoom },
+          }),
+          area: replaceable({
+            get () {
+              return config.width * config.zoom * config.height * config.zoom
+            },
+          }),
+          inflate: method((dw, dh) => {
+            config.right += dw
+            config.bottom += dh
+          }),
         })
       }
     }
@@ -170,52 +206,81 @@ For Web browser (only supporting es6)
 4. Instantiate and use the interfacial class.
 
     ```js
-    const myCfg = new MyClassConfig({ a: 'Foo', b: { c: 123, d: true } })
-    const myObj = new MyClass(myCfg)
-
-    console.log(myObj.toString())  // [object MyClass]
-    console.log(Object.prototype.toString.call(myObj)) // [object MyClass]
-    console.log(myObj.myA) // 'Foo'
-    console.log(myObj.myC) // 123
-    console.log(myObj.myF) // [1, 2, 3]
-    console.log(myObj.myG(2)) // 2
-
-    myObj.myA = 'Bar'
-    console.log(myObj.myA) // 'Foo'
-
-    myObj.myC = 999
-    console.log(myObj.myC) // 999
-
-    myObj.myF = 123
-    console.log(myObj.myF) // 123
+    const rectConfig = new RectangleConfig()
+    const rect = new Rectangle(rectConfig)
+    
+    console.log(rect.toString()) // => [object Rectangle]
+    console.log(Object.prototype.toString.call(rect)) // => [object Rectangle]
+    console.log(rectConfig.toString())
+    // => RectangleConfig { top: 0, left: 0, right: 100, bottom: 50, zoom: 1, zoomRange: { min: 0.2, max: 5 } }
+    
+    console.log(rect.width) // => 100
+    console.log(rect.height) // => 50
+    console.log(rect.area) // => 5000
+    
+    rect.inflate(10, 20)
+    console.log(rectConfig.toString())
+    // => RectangleConfig { top: 0, left: 0, right: 110, bottom: 70, zoom: 1, zoomRange: { min: 0.2, max: 5 } }
+    console.log(rect.width) // => 110
+    console.log(rect.height) // => 70
+    console.log(rect.area) // => 7700
     ```
 
 5. A property value, even if it is read-only or hidden, can be updated with the class config object.
 
     ```js
-    myCfg.a = 'Buz'
-    myCfg.b.c = 666
-    myCfg.b.d = 888
-
-    console.log(myObj.myA) // 'Buz'
-    console.log(myObj.myC) // 666
-    console.log(myObj.myG(2)) // 1776
+    rectConfig.zoom = 0
+    console.log(rectConfig.toString())
+    // => RectangleConfig { top: 0, left: 0, right: 110, bottom: 70, zoom: 0.2, zoomRange: { min: 0.2, max: 5 } }
+    console.log(rect.width) // => 22
+    console.log(rect.height) // => 14
+    console.log(rect.area) // => 308
+    
+    rectConfig.right = 160
+    rectConfig.bottom = 120
+    console.log(rectConfig.toString())
+    // => RectangleConfig { top: 0, left: 0, right: 160, bottom: 120, zoom: 0.2, zoomRange: { min: 0.2, max: 5 } }
+    console.log(rect.width) // => 32
+    console.log(rect.height) // => 24
+    console.log(rect.area) // => 768
     ```
 
-6. A mapping between a config class instance and a interfacial class instance can be managed by `ClassConfig.Manager` object.
+### Manage a config object and interfacial object
 
-    ```js
-    const { Manager } = ClassConfig
+A mapping between a config class instance and a interfacial class instance can be managed by `ClassConfig.Manager` object.
 
-    const manager = new Manager()  // Create a manager
+```js
+const { Manager } = ClassConfig
 
-    manager.set(myCfg, myObj)  // Set a mapping
+const manager = new Manager()  // Create a manager
 
-    const aCfg = manager.getConfig(myObj)  // Get the configure object
-    const aObj = manager.getObject(myCfg)  // Get the interfacial object
+manager.set(rectConfig, rect)  // Set a mapping
 
-    manager.delete(aObj)  // Delete a mapping
-    ```
+const aConfig = manager.getConfig(rect)  // Get the configure object
+const aRect = manager.getObject(rectConfig)  // Get the interfacial object
+
+manager.delete(aRect)  // Delete a mapping
+```
+
+### Share private data with another config object
+
+A config object can share its private data (`config.$private`) with another config object, as follows:
+
+```
+const config1 = new RectangleConfig({ top: 1, left: 2, right: 12, bottom: 21 })
+const config2 = new RectangleConfig(config1, { sharePrivate: true })
+
+console.log(config1.toString())
+// => RectangleConfig { top: 1, left: 2, right: 12, bottom: 21, zoom: 1, zoomRange: { min: 0.2, max: 5 } }
+console.log(config2.toString())
+// => RectangleConfig { top: 1, left: 2, right: 12, bottom: 21, zoom: 1, zoomRange: { min: 0.2, max: 5 } }
+
+config1.right = 102
+console.log(config1.toString())
+// => RectangleConfig { top: 1, left: 2, right: 102, bottom: 21, zoom: 1, zoomRange: { min: 0.2, max: 5 } }
+console.log(config2.toString())
+// => RectangleConfig { top: 1, left: 2, right: 102, bottom: 21, zoom: 1, zoomRange: { min: 0.2, max: 5 } }
+```   
 
 ## API
 
@@ -223,10 +288,10 @@ For Web browser (only supporting es6)
 
 Is a class to configure the target class instance from hiding place.
 
-#### <u>.constructor (initConfig, defaultConfig) => ClassConfig</u>
+#### <u>.constructor (initConfig, defaultConfig, opts) => ClassConfig</u>
 
 Is a constructor to creates an instance of this class.
-*initConfig* and *defaultConfig* are plain objects and can be nested objects.
+*initConfig* and *defaultConfig* are objects and can be nested objects.
 *defaultConfig* is to specify the default values and the types of the properties.
 So if a type of a property in *initConfig* is different from a type of a corresponding property in *defaultConfig*, the property value in *initConfig* is ignored.
 
@@ -236,6 +301,13 @@ So if a type of a property in *initConfig* is different from a type of a corresp
 |:----------------|:------:|:---------------------------------------|
 | *initConfig*    | object | A configuration object which has initial property values. |
 | *defaultConfig* | object | A configuration object which has default property values. |
+| *opts*          | object | A option object (Optional) |
+
+**Propeties of <i>opts</i>:**
+
+| Property        |  Type   | Description                            |
+|:----------------|:-------:|:---------------------------------------|
+| sharePrivate    | boolean | True, if sharing `.$private` of `initConfig` which is `ClassConfig` object. (By default, falsy) | 
 
 **Returns:**
 
